@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conect IA Soul</title>
+    <style>
+        body {
+            background-color: #1e1e1e; /* Fundo escuro padrão de IDE */
+            color: #d4d4d4;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            box-sizing: border-box;
+        }
+        h2 { color: #569cd6; margin-top: 0; }
+        #chat-log {
+            flex-grow: 1;
+            background-color: #252526;
+            border: 1px solid #333;
+            padding: 10px;
+            margin-bottom: 10px;
+            overflow-y: auto;
+            font-family: 'Consolas', monospace;
+            border-radius: 4px;
+        }
+        .user-msg { color: #9cdcfe; margin-bottom: 5px; }
+        .ai-msg { color: #ce9178; margin-bottom: 15px; }
+        .input-area { display: flex; gap: 10px; }
+        input[type="text"] {
+            flex-grow: 1;
+            padding: 10px;
+            background-color: #3c3c3c;
+            color: white;
+            border: 1px solid #555;
+            border-radius: 4px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #007acc;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        button:hover { background-color: #0098ff; }
+    </style>
+</head>
+<body>
+
+    <h2>Conect IA - Delphi Soul</h2>
+    <div id="chat-log">
+        <div class="ai-msg">Conectado. Aguardando comandos para o Delphi...</div>
+    </div>
+    
+    <div class="input-area">
+        <input type="text" id="prompt" placeholder="Ex: Crie um método de teste...">
+        <button onclick="enviarComando()">Injetar no Delphi</button>
+    </div>
+
+<script>
+        async function enviarComando() {
+            const input = document.getElementById('prompt');
+            const log = document.getElementById('chat-log');
+            const comando = input.value;
+
+            if (!comando) return;
+
+            log.innerHTML += `<div class="user-msg">Você: ${comando}</div>`;
+            const msgId = 'msg-' + Date.now();
+            log.innerHTML += `<div class="ai-msg" id="${msgId}">IA: </div>`;
+            
+            input.value = '';
+            log.scrollTop = log.scrollHeight;
+
+            try {
+                const resposta = await fetch('http://localhost:3000/api/soul/delphi', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ comando: comando })
+                });
+
+                const reader = resposta.body.getReader();
+                const decoder = new TextDecoder();
+                const divIA = document.getElementById(msgId);
+                
+                // 1. Criamos a "memória" para segurar o código
+                let codigoCompleto = ""; 
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    
+                    // 2. Quando terminar de gerar tudo...
+                   if (done) {
+                        // Envia o bloco limpo
+                        if (window.chrome && window.chrome.webview) {
+                            window.chrome.webview.postMessage(codigoCompleto);
+                        }
+                        break;
+                    }
+
+                    const pedaco = decoder.decode(value);
+                    
+                    // 3. Digita na tela HTML (Streaming visual)
+                    divIA.innerText += pedaco; 
+                    // 4. Guarda o pedaço na memória para o Delphi
+                    codigoCompleto += pedaco; 
+                    
+                    log.scrollTop = log.scrollHeight;
+                }
+            } catch (erro) {
+                document.getElementById(msgId).innerText = 'IA: Servidor Node.js não está rodando.';
+            }
+        }
+
+        document.getElementById('prompt').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') enviarComando();
+        });
+    </script>
+</body>
+</html>
